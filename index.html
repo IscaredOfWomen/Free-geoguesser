@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mini GeoGuessr</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    #streetview {
+      width: 100%;
+      height: 100vh;
+    }
+    #map {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 200px;
+      height: 200px;
+      z-index: 1000;
+      border: 2px solid white;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div id="streetview"></div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Mapillary Viewer SDK -->
+  <script src="https://unpkg.com/@mapillary/js@4.0.0/dist/mapillary.min.js"></script>
+  <script>
+    // 1. Initialize Leaflet mini map (optional, like in GeoGuessr)
+    const map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 2. Mapillary Client Token (get one for free)
+    const MAPILLARY_TOKEN = "YOUR_MAPILLARY_TOKEN_HERE";
+
+    // 3. Create the viewer container
+    const viewer = new mapillary.Viewer({
+      container: 'streetview',
+      accessToken: MAPILLARY_TOKEN
+    });
+
+    // 4. Pick random location (example: somewhere roughly on Earth land)
+    function randomLatLng() {
+      // Rough bounding box to avoid the middle of the ocean
+      const lat = Math.random() * 140 - 70;  // -70 to 70
+      const lng = Math.random() * 360 - 180; // -180 to 180
+      return [lat, lng];
+    }
+
+    async function loadRandomStreetView() {
+      const [lat, lng] = randomLatLng();
+
+      // 5. Search for the nearest street image near the random coords
+      const url = `https://graph.mapillary.com/images?access_token=${MAPILLARY_TOKEN}&fields=id,geometry&closeto=${lng},${lat}&limit=1`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.data && data.data.length > 0) {
+          const image = data.data[0];
+          viewer.moveTo(image.id);
+          map.setView([image.geometry.coordinates[1], image.geometry.coordinates[0]], 14);
+        } else {
+          // Retry if no image found
+          loadRandomStreetView();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadRandomStreetView();
+  </script>
+</body>
+</html>
